@@ -1,0 +1,45 @@
+# ===== Python =====
+# 虚拟环境（你本机装的依赖，绝对不能提交）
+.venv/
+venv/
+env/
+ENV/
+
+# Python 字节码缓存
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 打包 / 构建产物
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ===== 数据与模型 =====
+# 大文件（下载的模型、数据集）不要提交到 GitHub
+data/
+models/
+*.bin
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.onnx
+
+# ===== 密钥与配置 =====
+# 存放 API Key 之类的敏感信息，绝不能上传
+.env
+.env.*
+!.env.example
+
+# ===== 工具缓存 =====
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ===== IDE / 系统 =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
