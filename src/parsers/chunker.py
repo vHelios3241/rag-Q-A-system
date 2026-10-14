@@ -103,7 +103,5 @@ class TextChunker:
 
   def _split_by_sentence(self, text: str) -> List[Dict]:
     """按句子分割"""
-    sentences = re.split(r'([。！？.!?]\s*)', text)
-    # 重新组合句子和标点
-    sentences = [''.join(pair) for pair in zip(sentences[::2], sentences[1::2])]
+    pass
 
