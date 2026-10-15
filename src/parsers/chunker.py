@@ -45,18 +45,24 @@ class TextChunker:
        分块结果列表
      """
     if self.strategy == ChunkStrategy.PARAGRAPH:
-      pass
+      chunks = self._split_by_paragraph(text)
     elif self.strategy == ChunkStrategy.SENTENCE:
-      pass
+      chunks = self._split_by_sentence(text)
     elif self.strategy == ChunkStrategy.CHARACTER:
-      pass
-    elif self.strategy == ChunkStrategy.SEMANTIC:
-      pass
+      chunks = self._split_by_character(text)
+    else:
+      chunks = self._split_by_paragraph(text) # 默认按段落
+
+    # 如果有表格，将表格作为单独的块
+    if tables:
+      chunks = self._attach_tables(chunks, tables)
+
+    return chunks
 
 
-  def split_by_paragraph(self, text:str) -> List[Dict]: 
+  def _split_by_paragraph(self, text:str) -> List[Dict]: 
     """按段落分割"""
-    chunk=[]
+    chunks=[]
     paragraphs = text.split('\n\n')
 
     current_chunk = ""           # 当前块
@@ -72,7 +78,7 @@ class TextChunker:
 
         # 如果当前块长度大于最小块大小，则添加到分块结果
         if len(current_chunk) > self.min_chunk_size:
-          chunk.append({
+          chunks.append({
             "content": current_chunk.strip(),
             "index": chunk_index,
             "length": len(current_chunk),
@@ -84,8 +90,8 @@ class TextChunker:
         if len(para) > self.max_chunk_size:
         # 段落本身就超长，单独二次拆分
           sub_chunks = self._split_long_paragraph(para, chunk_index)
-          chunk.extend(sub_chunks)
-          chunk_index = len(chunk)
+          chunks.extend(sub_chunks)
+          chunk_index = len(chunks)
           current_chunk = ""
         else:
             # 段落不长，拼进当前块，保留重叠部分
@@ -95,9 +101,18 @@ class TextChunker:
       else:
         # 如果当前块长度加上新段落长度小于最大块大小，则继续添加
         current_chunk = current_chunk + "\n\n" + para if current_chunk else para
+
     # 最后一块
     if current_chunk and len(current_chunk) >= self.min_chunk_size:
-      pass
+      chunks.append({
+        "content": current_chunk.strip(),
+        "index": chunk_index,
+        "length": len(current_chunk),
+        "type": "text"
+    })
+      chunk_index += 1
+
+    return chunks
 
   def _split_long_paragraph(self, text: str, start_index: int) -> List[Dict]:
     """
@@ -191,5 +206,43 @@ class TextChunker:
         "length": len(current_chunk),
         "type": "text"
        })
+
+    return chunks
+
+
+  def _split_by_character(self, text: str) -> List[Dict]:
+    """按字符数分割"""
+    chunks = []
+    chunk_index = 0
+
+    for i in range(0, len(text), self.max_chunk_size - self.chunk_overlap):
+      chunk = text[i:i + self.max_chunk_size]
+      if len(chunk.strip()) >= self.min_chunk_size:
+        chunks.append({
+          "content": chunk.strip(),
+          "index": chunk_index,
+          "length": len(chunk),
+          "type": "text"
+         })
+        chunk_index += 1
+
+    return chunks
+
+
+  def _attach_tables(self, chunks: List[Dict], tables: List[Dict]) -> List[Dict]:
+    """将表格作为单独的块附加到分块结果"""
+    chunk_index = len(chunks)
+
+    for table in tables:
+      table_text = f"表格（第{table.get('page', '?')}页）：\n{table.get('markdown', '')}"
+      chunks.append({
+        "content": table_text,
+        "index": chunk_index,
+        "length": len(table_text),
+        "type": "table",
+        "page": table.get('page'),
+        "table_data": table
+       })
+      chunk_index += 1
 
     return chunks
