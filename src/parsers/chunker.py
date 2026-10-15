@@ -228,7 +228,6 @@ class TextChunker:
 
     return chunks
 
-
   def _attach_tables(self, chunks: List[Dict], tables: List[Dict]) -> List[Dict]:
     """将表格作为单独的块附加到分块结果"""
     chunk_index = len(chunks)
