@@ -1,7 +1,7 @@
 from pathlib import Path
-from typing import List,Optional
+from typing import List, Optional
 
-from docling.document_converter import DocumentConverter,PdfFormatOption
+from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 
@@ -9,17 +9,17 @@ from src.parsers.base import BaseParser, ParseResult
 from src.parsers.chunker import TextChunker
 from src.parsers.cleaner import TextCleaner
 from src.parsers.table_parser import TableProcessor
+import tempfile
 
 
 # PDF 解析器
-
 class PDFParser(BaseParser):                    # 继承父类
     """基于Docling的PDF解析器"""
 
     def __init__(self,                           # 构造函数
-                 chuncker: Option[TextChunker] = None,
-                 cleaner: Option[TextCleaner] = None,
-                 table_parser: Option[TableProcessor] = None):
+                 chuncker: Optional[TextChunker] = None,
+                 cleaner: Optional[TextCleaner] = None,
+                 table_parser: Optional[TableProcessor] = None):
         '''
         Args:
           chunker: 文本分块器
@@ -61,19 +61,26 @@ class PDFParser(BaseParser):                    # 继承父类
         chunks = self.chunker.split(cleaned_text, merged_tables)
 
         return ParseResult(                             # 组装返回结果
-           filename=Path(file_path).name,               # "产品手册.pdf"
-           total_pages=len(doc.document.pages),         # 总页数
-           total_chunks=len(raw_text),                  # 这是字符数不是块数
-           table_count=len(merged_tables),              # 表格数量
-           chunks=chunks,                               # 分块数据
-           raw_text=cleaned_text,                       # 完整 Markdown 文本
-           tables=merged_tables,                        # 表格数据
-           metadata={"parse": "docling", "file_path": file_path}  # 解析器信息
-           )
+            filename=Path(file_path).name,               # "产品手册.pdf"
+            total_pages=len(doc.document.pages),         # 总页数
+            total_chunks=len(raw_text),                  # 这是字符数不是块数
+            table_count=len(merged_tables),              # 表格数量
+            chunks=chunks,                               # 分块数据
+            raw_text=cleaned_text,                       # 完整 Markdown 文本
+            tables=merged_tables,                        # 表格数据
+            metadata={"parse": "docling", "file_path": file_path}  # 解析器信息
+        )
 
     # 从字节流解析
     def parse_from_bytes(self, file_bytes: bytes, filename: str) -> ParseResult:
-        doc = self.converter.convert(file_bytes)
+        # 创建临时文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(filename).suffix) as f:
+            # 写入文件
+            f.write(file_bytes)
+            # 获取文件路径
+            file_path = f.name
+
+        doc = self.converter.convert(file_path)
         raw_text = doc.document.export_to_markdown()
         tables = self._extract_table(doc)
 
@@ -83,15 +90,15 @@ class PDFParser(BaseParser):                    # 继承父类
         chunks = self.chunker.split(cleaned_text, marged_tables)
 
         return ParseResult(
-          filename=Path(file_path).name,
-          total_pages=len(doc.document.pages),
-          total_chunks=len(chunks),
-          table_count=len(marged_tables),
-          chunks=chunks,
-          raw_text=cleaned_text,
-          tables=marged_tables,
-          metadata={"parser":"docling","file_path":file_path}
-            )
+            filename=Path(filename).name,
+            total_pages=len(doc.document.pages),
+            total_chunks=len(chunks),
+            table_count=len(marged_tables),
+            chunks=chunks,
+            raw_text=cleaned_text,
+            tables=marged_tables,
+            metadata={"parser": "docling", "file_path": filename}
+        )
 
     # 以 _ 开头 = 私有方法,只能在类内部调用
     # 提取表格。 hasattr(obj, "xxx")：检查对象有没有某个属性
