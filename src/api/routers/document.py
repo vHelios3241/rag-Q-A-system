@@ -1,6 +1,7 @@
 '''文档解析接口'''
 import os
 
+from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
 from ..config import settings
@@ -12,8 +13,6 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/document", tags=["文件解析"])
 
 # 子路由：上传文档并解析
-
-
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)):
     '''
@@ -41,7 +40,7 @@ async def upload_document(file: UploadFile = File(...)):
         return {
             "message": "文档处理成功",
             "filename": result.filename,
-            "saved_path": str(result.saved_path),
+            "saved_path": "",
             "total_pages": result.total_pages,
             "chunks_count": result.total_chunks,
             "tables_count": result.table_count,
@@ -54,6 +53,11 @@ async def upload_document(file: UploadFile = File(...)):
 class ParsePathRequest(BaseModel):
     file_path: str      # 文件路径
 
+def _ensure_upload_dir():
+    """确保上传目录存在"""
+    upload_dir = Path(settings.UPLOAD_DIR)         # 获取上传目录路径
+    upload_dir.mkdir(parents=True, exist_ok=True)  # 创建目录
+    return upload_dir
 
 @router.post("/parse-path")
 async def parse_document_by_path(body: ParsePathRequest):
@@ -65,17 +69,24 @@ async def parse_document_by_path(body: ParsePathRequest):
      """
     input_path = body.file_path
 
+    # 判断input_path是否为完整路径
+    if os.path.dirname(input_path):
+        target_path = input_path
+    else:
+        # 只有文件名: 拼接路径
+        upload_dir = _ensure_upload_dir()
+        target_path = os.path.join(upload_dir, input_path)
+
     # 判断文件是否存在
-    if not os.path.exists(input_path):
-        raise HTTPException(
-            status_code=404, detail=f"文件不存在: {input_path}")
+    if not os.path.isfile(target_path):
+        raise HTTPException(status_code=404, detail=f"文件不存在: {target_path}")
     # 解析文件
     try:
-        rs = parse_file(input_path)
+        rs = parse_file(target_path)
         return {
             "message": "文档处理成功",
             "filename": rs.filename,
-            "saved_path": str(rs.saved_path),
+            "saved_path": target_path,
             "total_pages": rs.total_pages,
             "chunks_count": rs.total_chunks,
             "tables_count": rs.table_count,
