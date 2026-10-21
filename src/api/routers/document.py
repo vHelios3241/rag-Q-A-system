@@ -1,16 +1,22 @@
 '''文档解析接口'''
-import os
-
-from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import BaseModel
+import os
+import time
+from pathlib import Path
 
-from ..config import settings
 from src.parsers import ParserFactory, parse_file
 from src.parsers.base import ParseResult
-from pydantic import BaseModel
+from ..config import settings
 
 # 创建路由对象
 router = APIRouter(prefix="/document", tags=["文件解析"])
+
+def _generate_filename(original_filename: str) -> str:
+  """生成带时间戳的文件名"""
+  name, ext = os.path.splitext(original_filename)
+  timestamp = int(time.time())
+  return f"{name}_{timestamp}{ext}"
 
 # 子路由：上传文档并解析
 @router.post("/upload")
@@ -31,6 +37,16 @@ async def upload_document(file: UploadFile = File(...)):
     if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400, detail=f"不支持的文件格式，仅支持{settings.ALLOWED_EXTENSIONS}")
+
+    # 数据保存
+    upload_dir = _ensure_upload_dir()
+    # 生成唯一文件名
+    filename = _generate_filename(file.filename)
+    file_path = str(upload_dir / filename)
+    # 保存文件
+    with open(file_path, "wb") as f:
+        f.write(file_bites)
+
     try:
         # 获取解析器
         parser = ParserFactory.get_parser(file.filename)
