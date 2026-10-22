@@ -52,18 +52,50 @@ class TableProcessor:
     if df.empty:
       return ""
 
-    # 生成文本描述
+    return self.dataframe_to_text(df)
+
+
+  def dataframe_to_text(self, df: pd.DataFrame) -> str:
+    """
+     将DataFrame转换为文本描述
+
+     Args:
+       df: pandas DataFrame
+
+     Returns:
+       表格的文本描述
+     """
+    if df.empty:
+      return ""
+
     text_parts = []
     text_parts.append("表格内容：")
-
-    # 添加表头
     text_parts.append(" | ".join(df.columns))
 
-    # 添加数据行
     for _, row in df.iterrows():
       text_parts.append(" | ".join(str(v) for v in row))
 
     return "\n".join(text_parts)
+
+
+  def extract_key_value(self, table_markdown: str) -> dict:
+    """
+     从两列表格提取键值对
+     第一列作为 key，第二列作为 value
+
+     Args:
+       table_markdown: Markdown格式的表格
+
+     Returns:
+       键值对字典，如果不是两列表格则返回空字典
+     """
+    df = self.markdown_to_dataframe(table_markdown)
+
+    if df.empty or len(df.columns) != 2:
+      return {}
+
+    col_key, col_val = df.columns[0], df.columns[1]
+    return {str(row[col_key]).strip(): str(row[col_val]).strip() for _, row in df.iterrows()}
 
 
 
