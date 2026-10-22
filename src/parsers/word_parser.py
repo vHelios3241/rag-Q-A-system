@@ -9,7 +9,7 @@ from src.parsers.chunker import TextChunker
 from src.parsers.cleaner import TextCleaner
 from src.parsers.table_parser import TableProcessor
 
-
+'''word解析器,基于python-docx的Word解析器'''
 class WordParser(BaseParser):
     """基于python-docx的Word解析器"""
 
