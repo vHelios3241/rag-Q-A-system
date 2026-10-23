@@ -57,5 +57,5 @@ class MarkdownParser(BaseParser):
             metadata={"parser": "markdown"}
         )
 
-    def supported_extensions(self) -> list:
+    def support_extensions(self) -> list[str]:
         return [".md", ".markdown", ".MD", ".MARKDOWN"]
