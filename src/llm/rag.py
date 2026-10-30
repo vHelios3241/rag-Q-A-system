@@ -27,12 +27,47 @@ def generate_answer(
             'content': ""}
 
     # 格式化上下文
+    context = format_context(results)
 
     #构建提示词
+    prompt = build_prompt(question, context)
 
     # 调用llm生成回答
-
+    messages = [{'role': 'user', 'content': prompt}] 
+    answer = llm.generate(
+        messages,
+        temperature=temperature,
+        max_tokens=max_tokens)
+    
     # 返回结果
+    return {
+        'answer': answer.get('content', ''),
+        'question': question,
+        'content': context,
+        'tokens': answer['token_used'],
+        'model': answer['model'],
+        }
+
+
+def build_prompt(question: str, context: str) -> str:
+    """
+    构建提示词
+    Args:
+        question: 问题
+        context: 上下文
+    Returns:
+        str: 提示词
+    """
+    # 提示词要求：
+    instrution = (
+        '你是一个基于文档的问答助手，请严格依据上下文回答问题：'
+        '如果上下文缺失相关信息，请回答“不知道”。'
+    )
+    return (
+        f'{instrution}\n\n'
+        f'[上下文]\n{context}\n\n'
+        f'[问题]\n问:{question}\n答:'
+    )
 
 def format_context(
         results: List[Dict[str, Any]],
