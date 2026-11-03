@@ -1,6 +1,7 @@
 '''文档解析接口'''
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 import os
 import time
 from pathlib import Path
@@ -8,19 +9,26 @@ from pathlib import Path
 from src.parsers import ParserFactory, parse_file
 from src.parsers.base import ParseResult
 from ..config import settings
+from src.database.document_store import DocumentStore
+from src.embeddings.local_embedding import LocalEmbedding
+
 
 # 创建路由对象
 router = APIRouter(prefix="/document", tags=["文件解析"])
 
+
 def _generate_filename(original_filename: str) -> str:
-  """生成带时间戳的文件名"""
-  name, ext = os.path.splitext(original_filename)
-  timestamp = int(time.time())
-  return f"{name}_{timestamp}{ext}"
+    """生成带时间戳的文件名"""
+    name, ext = os.path.splitext(original_filename)
+    timestamp = int(time.time())
+    return f"{name}_{timestamp}{ext}"
 
 # 子路由：上传文档并解析
+
+
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(file: UploadFile = File(...),
+                         collection_name: Optional[str] = None):
     '''
     上传文档并解析
     支持格式: pdf, docx, md, html, txt
@@ -52,16 +60,32 @@ async def upload_document(file: UploadFile = File(...)):
         parser = ParserFactory.get_parser(file.filename)
         # 解析文件
         result = parser.parse_from_bytes(file_bites, file.filename)
-        # 返回解析结果
-        return {
-            "message": "文档处理成功",
-            "filename": result.filename,
-            "saved_path": "",
-            "total_pages": result.total_pages,
-            "chunks_count": result.total_chunks,
-            "tables_count": result.table_count,
-            "chunks": result.chunks
-        }
+        
+        # 保存到向量数据库
+        if collection_name:
+            # 初始化嵌入模型
+            embedding_model = LocalEmbedding(model_name="BAAI/bge-small-zh-v1.5")
+            # 初始化文档存储
+            store = DocumentStore(
+                embedding_model=embedding_model,
+                collection_name=collection_name
+            )
+            # 添加文档
+            doc_ids = store.add_parse_result(result)
+            return {
+                "success": True,
+                "stored": True,
+                "filename": result.filename,
+                "doc_count": len(doc_ids)
+            }
+        else:
+            # 返回解析结果
+            return {
+                "success": True,
+                "stored": False,
+                "filename": result.filename,
+                "doc_count": result.total_chunks
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"文档处理失败: {str(e)}")
 
@@ -69,11 +93,13 @@ async def upload_document(file: UploadFile = File(...)):
 class ParsePathRequest(BaseModel):
     file_path: str      # 文件路径
 
+
 def _ensure_upload_dir():
     """确保上传目录存在"""
     upload_dir = Path(settings.UPLOAD_DIR)         # 获取上传目录路径
     upload_dir.mkdir(parents=True, exist_ok=True)  # 创建目录
     return upload_dir
+
 
 @router.post("/parse-path")
 async def parse_document_by_path(body: ParsePathRequest):
