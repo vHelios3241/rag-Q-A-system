@@ -7,10 +7,10 @@ import time
 from pathlib import Path
 
 from src.parsers import ParserFactory, parse_file
-from src.parsers.base import ParseResult
 from ..config import settings
 from src.database.document_store import DocumentStore
 from src.embeddings.local_embedding import LocalEmbedding
+from src.api.deps import get_embedding_model
 
 
 # 创建路由对象
@@ -64,7 +64,7 @@ async def upload_document(file: UploadFile = File(...),
         # 保存到向量数据库
         if collection_name:
             # 初始化嵌入模型
-            embedding_model = LocalEmbedding(model_name="BAAI/bge-small-zh-v1.5")
+            embedding_model = get_embedding_model()
             # 初始化文档存储
             store = DocumentStore(
                 embedding_model=embedding_model,
