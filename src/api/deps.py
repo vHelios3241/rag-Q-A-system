@@ -1,3 +1,4 @@
+import os
 from functools import lru_cache
 from fastapi import HTTPException
 from .config import settings
@@ -9,7 +10,7 @@ from ..llm.llm import LLM
 @lru_cache(maxsize=1)
 def get_embedding_model():
   """获取嵌入模型实例"""
-  embedding_model = LocalEmbedding(model_name="BAAI/bge-small-zh-v1.5")
+  embedding_model = LocalEmbedding(model_name="BAAI/bge-small-zh-v1.5", device=os.getenv("VECTOR_MODEL_DEVICE", "cpu"))
   return embedding_model
 
 def get_search_service(collection_name: str = "default"):
