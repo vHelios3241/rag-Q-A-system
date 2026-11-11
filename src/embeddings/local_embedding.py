@@ -1,5 +1,8 @@
+import os
+from pathlib import Path
+
 from src.embeddings.base import BaseEmbedding
-from transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer
 from typing import List
 
 class LocalEmbedding(BaseEmbedding):
@@ -20,7 +23,14 @@ class LocalEmbedding(BaseEmbedding):
        device: 运行设备（cpu / cuda）
      """
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name, device = device)
+        self.device = device
+
+        # 获取缓存目录
+        cache_folder = os.getenv("MODEL_CACHE_DIR", "./models_cache")
+        Path(cache_folder).mkdir(parents=True, exist_ok=True)
+
+        # 加载模型
+        self.model = SentenceTransformer(model_name, device = device, cache_folder=cache_folder)
 
     
     def embed_text(self, text: str) -> List[float]:
